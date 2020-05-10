@@ -3,6 +3,7 @@ import * as d3 from 'd3'
 import * as topojson from 'topojson'
 import  { Topology } from 'topojson-specification'
 import { Feature } from 'geojson'
+import { GeoSphere } from 'd3'
 
 const LOADING = 'Loading' as const
 const SUCCESS = 'Success' as const
@@ -88,13 +89,25 @@ const MapSample: FC<MapSampleProps> = ({
 
     const feature = topojson
       .feature(mapData, mapData.objects[objectsname])
+    console.log("feature.type")
+    console.log(feature.type)
     const features: Feature[] = (feature.type === "FeatureCollection") ?
       feature.features : [feature]
 
     const g = svg.append('g')
+    // 海描画
+    const sphere: GeoSphere[] = [{type: "Sphere"}]
+    const sea = g.selectAll('.sea')
+      .data(sphere)
+    sea.join('path')
+      .attr('class', 'shape sea')
+      .attr('d', pathGenerator)
+      .style('fill', 'blue')
+      .style('fill-opacity', 0.2)
+
+    // 海の上に陸地描画
     const item = g.selectAll('.item')
       .data(features)
-
     item.join('path')
       .attr('class', 'shape item')
       .attr('d', pathGenerator)
