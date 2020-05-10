@@ -163,6 +163,39 @@ const MapSample: FC<MapSampleProps> = ({
       .on('zoom', onZoomed)
     svg.call(zoom)
 
+
+    // 東京 - ロンドン間を線で結ぶ
+    const tokyo:[number, number] = [139.7494, 35.6869];
+    const london:[number, number] = [0.1278, 51.5074];
+
+    const lines: GeoJSON.LineString[] = [
+      {
+        'type': 'LineString',
+        'coordinates': [
+          tokyo,
+          london,
+        ]
+      }
+    ];
+    const line = g.selectAll('.line')
+      .data(lines)
+    line.join('path')
+      .attr('class', 'shape line')
+      .attr('fill', 'none')
+      .attr('stroke', 'red')
+      .attr('stroke-width', 5)
+
+    const points: GeoJSON.Point[] = [
+      {'type': 'Point', 'coordinates': tokyo},
+      {'type': 'Point', 'coordinates': london},
+    ]
+    const point = g.selectAll('.point')
+      .data(points)
+    point.join('path')
+      .attr('class', 'shape point')
+      .attr("d", pathGenerator.pointRadius(10))
+      .style('fill', 'red')
+
     console.log("draw end")
   }
 
