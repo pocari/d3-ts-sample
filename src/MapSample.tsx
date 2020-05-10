@@ -1,4 +1,4 @@
-import React, { Component, FC, useEffect, useState, useRef } from 'react'
+import React, { FC, useEffect, useState, useRef } from 'react'
 import * as d3 from 'd3'
 import * as topojson from 'topojson'
 import  { Topology } from 'topojson-specification'
@@ -17,12 +17,12 @@ const styles = {
   }
 }
 
-interface MapFile {
+interface MapSampleProps {
   url: string;
   objectsname: string
 }
 
-const MapSample: FC<MapFile> = ({
+const MapSample: FC<MapSampleProps> = ({
   url,
   objectsname,
 }) => {
@@ -42,7 +42,7 @@ const MapSample: FC<MapFile> = ({
          setStatus(FAILURE)
        }
      })()
-  }, [setStatus, setTopology])
+  }, [setStatus, setTopology, url])
 
   useEffect(() => {
     if (svg.current) {
