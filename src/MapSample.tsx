@@ -3,6 +3,7 @@ import * as d3 from 'd3'
 import * as topojson from 'topojson'
 import  { Topology } from 'topojson-specification'
 import { Feature } from 'geojson'
+import { EnterElement } from 'd3'
 
 const LOADING = 'Loading' as const
 const SUCCESS = 'Success' as const
@@ -96,15 +97,13 @@ const MapSample: FC<MapSampleProps> = ({
     const item = g.selectAll('.item')
       .data(features)
 
-    item.exit().remove()
-
-    item.enter()
-      .append('path')
+    item.join('path')
       .attr('class', 'shape item')
       .attr('d', pathGenerator)
       .style('fill', 'black')
       .style('stroke', () => "white")
       .style('stroke-width', () => 0.1)
+
     console.log("draw end")
   }
 
