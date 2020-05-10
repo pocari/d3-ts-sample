@@ -3,12 +3,10 @@ import * as d3 from 'd3'
 import * as topojson from 'topojson'
 import  { Topology } from 'topojson-specification'
 import { Feature } from 'geojson'
-import { EnterElement } from 'd3'
 
 const LOADING = 'Loading' as const
 const SUCCESS = 'Success' as const
 const FAILURE = 'Failure' as const
-
 type Status = typeof LOADING | typeof SUCCESS | typeof FAILURE
 
 const styles = {
