@@ -3,7 +3,7 @@ import * as d3 from 'd3'
 import * as topojson from 'topojson'
 import  { Topology } from 'topojson-specification'
 import { Feature } from 'geojson'
-import { GeoSphere } from 'd3'
+import { GeoSphere, GeoPermissibleObjects, SubjectPosition } from 'd3'
 
 const LOADING = 'Loading' as const
 const SUCCESS = 'Success' as const
@@ -28,7 +28,7 @@ const MapSample: FC<MapSampleProps> = ({
 }) => {
   const [ topology, setTopology] = useState<Topology | null>(null)
   const [ status, setStatus ] = useState<Status>(LOADING)
-  const svg = useRef<SVGSVGElement>(null)
+  const svgRef = useRef<SVGSVGElement>(null)
   useEffect(() => {
      (async () => {
        console.log("load json")
@@ -45,9 +45,9 @@ const MapSample: FC<MapSampleProps> = ({
   }, [setStatus, setTopology, url])
 
   useEffect(() => {
-    if (svg.current) {
+    if (svgRef.current) {
       console.log('didupdate')
-      const svgElem = d3.select<SVGSVGElement, Feature[]>(svg.current)
+      const svgElem = d3.select<SVGSVGElement, Feature[]>(svgRef.current)
       console.log(`svgElem: ${typeof svgElem}`)
       draw(svgElem)
     }
@@ -56,9 +56,9 @@ const MapSample: FC<MapSampleProps> = ({
   const getProjection = (): d3.GeoProjection => {
     let width = 0
     let height = 0
-    if (svg.current) {
-      width = svg.current.clientWidth
-      height = svg.current.clientHeight
+    if (svgRef.current) {
+      width = svgRef.current.clientWidth
+      height = svgRef.current.clientHeight
     }
     return d3.geoOrthographic()
       .scale(300)
@@ -115,6 +115,54 @@ const MapSample: FC<MapSampleProps> = ({
       .style('stroke', () => "white")
       .style('stroke-width', () => 0.1)
 
+    // 回転(drag)イベント
+    // dragイベントを先に登録しないと zoom 側が優先されて drag が効かなくなる
+    const onDraged = (
+      projection: d3.GeoProjection,
+      pathGenerator: d3.GeoPath<SVGPathElement, GeoPermissibleObjects>
+    ) => {
+      const rotate = projection.rotate()
+      projection.rotate([
+        d3.event.x,
+        -d3.event.y,
+        rotate[2],
+      ])
+      if (!svgRef.current) {
+        return
+      }
+      const svg = d3.select<SVGSVGElement, Feature>(svgRef.current)
+      svg.selectAll<SVGPathElement, GeoPermissibleObjects>('path')
+        .attr("d", pathGenerator)
+    }
+
+    const drag = d3.drag<SVGSVGElement, Feature[], SubjectPosition>()
+      .subject(() => {
+        // ここでevent開始時の初期値設定しているらしい。
+        // onDragStart とかの個別のeventを書かなくても良くなる
+        const rotate = projection.rotate()
+        return {
+          x: rotate[0],
+          y: -rotate[1],
+        }
+      })
+      .on('drag', () =>  onDraged(projection, pathGenerator))
+    svg.call(drag)
+
+    // ズームイベント
+    const onZoomed = () => {
+      if (!svgRef.current) {
+        return
+      }
+      d3.select<SVGSVGElement, Feature>(svgRef.current)
+        .selectAll('.shape')
+        .attr('transform', d3.event.transform)
+    }
+
+    const zoom = d3.zoom<SVGSVGElement, Feature[]>()
+      .scaleExtent([1, 24])
+      .on('zoom', onZoomed)
+    svg.call(zoom)
+
     console.log("draw end")
   }
 
@@ -130,7 +178,7 @@ const MapSample: FC<MapSampleProps> = ({
     <div>
       <div>{url}</div>
       <div>{objectsname}</div>
-      <svg style={styles.svg} ref={svg} />
+      <svg style={styles.svg} ref={svgRef} />
     </div>
 
   )
