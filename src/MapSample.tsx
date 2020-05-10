@@ -22,6 +22,20 @@ interface MapSampleProps {
   objectsname: string
 }
 
+const equalsFeature = (d1: Feature, d2: Feature) => {
+  return (d1.properties && d2.properties)
+    && (d1.properties.NAME === d2.properties.NAME);
+}
+
+const getCountryColor = (
+  d: Feature,
+  scale?: d3.ScaleContinuousNumeric<number, number>
+) => {
+  return (d.properties && scale)
+    ? d3.interpolateReds(scale(+d.properties.POP_EST))
+    : "gray"
+}
+
 const MapSample: FC<MapSampleProps> = ({
   url,
   objectsname,
@@ -66,8 +80,13 @@ const MapSample: FC<MapSampleProps> = ({
 
   const barChart = (
     svg: d3.Selection<SVGSVGElement, Feature[], null, undefined>,
-    features: Feature[]
+    features: Feature[],
+    popScale: d3.ScalePower<number, number> | undefined,
   ) => {
+    if (!popScale) {
+      return
+    }
+
     let width = 0
     let height = 0
 
@@ -113,7 +132,8 @@ const MapSample: FC<MapSampleProps> = ({
     const bar = barArea.selectAll('.bar')
       .data(sortedFeature)
 
-    bar.join('rect')
+    bar.exit().remove()
+    bar.enter().append('rect')
       .attr('class', 'bar')
       .attr('fill', 'steelblue')
       .attr('x', d => d.properties ? (x(d.properties.NAME) || null) : null)
@@ -122,8 +142,47 @@ const MapSample: FC<MapSampleProps> = ({
       .attr('height', d => {
         return height - ((d.properties) ? y(+d.properties.GDP_MD_EST) : barHeight)
       })
+      .on('mouseover', (d, i, elem1) => {
+        d3.selectAll<SVGPathElement, Feature>('.item')
+          .style("fill", (d2, j, elem2) => {
+            return equalsFeature(d, d2)
+              ? "red"
+              : elem2[j].style.fill
+          })
+          .style("stroke", (d2, j, elem2) => {
+            return equalsFeature(d, d2)
+              ? "black"
+              : elem2[j].style.stroke
+          })
+          .style("stroke-width", (d2, j, elem2) => {
+            return equalsFeature(d, d2)
+              ? 2.0
+              : elem2[j].style.strokeWidth
+          })
 
-
+        d3.select(elem1[i])
+          .style("fill", "red")
+      })
+      .on('mouseout', (d, i, elem1) => {
+        d3.selectAll<SVGPathElement, Feature>('.item')
+          .style("fill", (d2, j, elem2) => {
+            return equalsFeature(d, d2)
+              ? getCountryColor(d, popScale)
+              : elem2[j].style.fill
+          })
+          .style("stroke", (d2, j, elem2) => {
+            return equalsFeature(d, d2)
+              ? "gray"
+              : elem2[j].style.stroke
+          })
+          .style("stroke-width", (d2, j, elem2) => {
+            return equalsFeature(d, d2)
+              ? 0.1
+              : elem2[j].style.strokeWidth
+          })
+        d3.select(elem1[i])
+          .style("fill", "steelblue")
+      })
   }
 
   const draw = (svg: d3.Selection<SVGSVGElement, Feature[], null, undefined>) => {
@@ -182,22 +241,39 @@ const MapSample: FC<MapSampleProps> = ({
       d3.scaleSqrt().domain([popMin, popMax]).range([0, 1])
       : undefined
 
-    const getCountryColor = (
-      d: Feature,
-      scale?: d3.ScaleContinuousNumeric<number, number>
-    ) => {
-      return (d.properties && scale)
-        ? d3.interpolateReds(scale(+d.properties.POP_EST))
-        : "gray"
-    }
     const item = g.selectAll('.item')
       .data(features)
-    item.join('path')
+
+    item.exit().remove()
+
+    item.enter().append("path")
       .attr('class', 'shape item')
       .attr('d', pathGenerator)
       .style('fill', d => getCountryColor(d, popScale))
       .style('stroke', () => "white")
       .style('stroke-width', () => 0.1)
+      .on('mouseover', (d, i, elem1) => {
+        d3.selectAll<SVGRectElement, Feature>('.bar')
+          .style('fill', (d2, j, elem2) => {
+            return equalsFeature(d, d2) ? "red" : elem2[j].style.fill
+          });
+
+        d3.select<SVGPathElement, Feature>(elem1[i])
+          .style('fill', 'red')
+          .style('stroke', 'black')
+          .style('stroke-width', 2.0)
+      })
+      .on('mouseout', (d, i, elem1) => {
+        d3.selectAll<SVGRectElement, Feature>('.bar')
+          .style('fill', (d2, j, elem2) => {
+            return equalsFeature(d, d2) ? "steelblue" : elem2[j].style.fill
+          })
+
+        d3.select<SVGPathElement, Feature>(elem1[i])
+          .style('fill', d => getCountryColor(d, popScale))
+          .style('stroke', 'gray')
+          .style('stroke-width', 0.1)
+      })
 
     // 回転(drag)イベント
     // dragイベントを先に登録しないと zoom 側が優先されて drag が効かなくなる
@@ -282,7 +358,7 @@ const MapSample: FC<MapSampleProps> = ({
 
 
     // 人口の棒グラフを描画
-    barChart(svg, features)
+    barChart(svg, features, popScale)
 
     console.log("draw end")
   }
