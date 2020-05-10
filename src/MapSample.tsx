@@ -29,8 +29,7 @@ const MapSample: FC<MapSampleProps> = ({
   const [ topology, setTopology] = useState<Topology | null>(null)
   const [ status, setStatus ] = useState<Status>(LOADING)
   const svgRef = useRef<SVGSVGElement>(null)
-  useEffect(() => {
-     (async () => {
+  useEffect(() => { (async () => {
        console.log("load json")
        try {
          setStatus(LOADING)
@@ -63,6 +62,68 @@ const MapSample: FC<MapSampleProps> = ({
     return d3.geoOrthographic()
       .scale(300)
       .translate([width / 2, height / 2])
+  }
+
+  const barChart = (
+    svg: d3.Selection<SVGSVGElement, Feature[], null, undefined>,
+    features: Feature[]
+  ) => {
+    let width = 0
+    let height = 0
+
+    if (svgRef.current) {
+      width = svgRef.current.clientWidth
+      height = svgRef.current.clientHeight
+    }
+    const barHeight = height / 2
+
+    const x = d3.scaleBand().rangeRound([0, width]).padding(0.1)
+    const y = d3.scaleSqrt().range([height, barHeight])
+
+    const sortedFeature = features
+      .sort((a, b) => {
+        return (a.properties && b.properties &&
+          +a.properties.GDP_MD_EST <= b.properties.GDP_MD_EST) ? 1 : -1
+      })
+
+    x.domain(sortedFeature.map(d => {
+      return d.properties ? d.properties.NAME : null
+    }))
+
+    const max = d3.max(sortedFeature, f => f.properties ? +f.properties.GDP_MD_EST : 0)
+    y.domain([0, max || 0])
+
+    let yAxis = d3.axisLeft(y)
+      .scale(y)
+      .ticks(10)
+    const barArea = svg.append('g')
+      .attr('transform', "translate(100, -10)")
+
+    barArea.append('g')
+      .attr('class', 'y axis')
+      .attr('transform', 'translate(50, 0)')
+      .call(yAxis)
+      .append("text")
+      .attr('transform', 'rotate(-90)')
+      .attr("y", 6)
+      .attr('dy', '.71em')
+      .style('text-anchor', 'end')
+      .text('Value ($)')
+
+    const bar = barArea.selectAll('.bar')
+      .data(sortedFeature)
+
+    bar.join('rect')
+      .attr('class', 'bar')
+      .attr('fill', 'steelblue')
+      .attr('x', d => d.properties ? (x(d.properties.NAME) || null) : null)
+      .attr('y', d => d.properties ? (y(d.properties.GDP_MD_EST) || null) : null)
+      .attr('width', x.bandwidth())
+      .attr('height', d => {
+        return height - ((d.properties) ? y(+d.properties.GDP_MD_EST) : barHeight)
+      })
+
+
   }
 
   const draw = (svg: d3.Selection<SVGSVGElement, Feature[], null, undefined>) => {
@@ -219,6 +280,10 @@ const MapSample: FC<MapSampleProps> = ({
       .attr("d", pathGenerator.pointRadius(10))
       .style('fill', 'red')
 
+
+    // 人口の棒グラフを描画
+    barChart(svg, features)
+
     console.log("draw end")
   }
 
@@ -236,7 +301,6 @@ const MapSample: FC<MapSampleProps> = ({
       <div>{objectsname}</div>
       <svg style={styles.svg} ref={svgRef} />
     </div>
-
   )
 }
 
