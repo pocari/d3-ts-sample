@@ -106,12 +106,35 @@ const MapSample: FC<MapSampleProps> = ({
       .style('fill-opacity', 0.2)
 
     // 海の上に陸地描画
+    // 各国の人口を元に色をつける
+
+    // 人口の最大値、最小値を取得
+    const [popMin, popMax] = d3.extent(features, (f) => {
+      return (f.properties) ? +f.properties.POP_EST : undefined
+    });
+    console.log("min, max")
+    console.log([popMin, popMax])
+
+    // インドや中国みたいに極端に実行がおおいと、人口が少ないところに
+    // 差をつけずらくなるので、scaleLinearとかじゃなくて、多いほど増え方が少なくなるscaleSqrtで
+    const popScale = (popMin && popMax) ?
+      d3.scaleSqrt().domain([popMin, popMax]).range([0, 1])
+      : undefined
+
+    const getCountryColor = (
+      d: Feature,
+      scale?: d3.ScaleContinuousNumeric<number, number>
+    ) => {
+      return (d.properties && scale)
+        ? d3.interpolateReds(scale(+d.properties.POP_EST))
+        : "gray"
+    }
     const item = g.selectAll('.item')
       .data(features)
     item.join('path')
       .attr('class', 'shape item')
       .attr('d', pathGenerator)
-      .style('fill', 'black')
+      .style('fill', d => getCountryColor(d, popScale))
       .style('stroke', () => "white")
       .style('stroke-width', () => 0.1)
 
